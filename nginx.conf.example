@@ -1,0 +1,45 @@
+# Example nginx server block for the room placard (PHP-FPM).
+# Adjust server_name, root, the PHP-FPM socket, and add your TLS certificate.
+
+# Optional: limit how often one address can request images.
+# limit_req_zone $binary_remote_addr zone=placard:1m rate=30r/m;
+
+server {
+    listen 80;
+    server_name placard.example.edu;
+
+    # Only public/ is served. config, cache and sessions live in ../data and are never reachable.
+    root /var/www/reterminal-e1002/public;
+    index index.php;
+
+    # For HTTPS, use "listen 443 ssl;" with ssl_certificate / ssl_certificate_key,
+    # and redirect port 80 to it. The admin session cookie is marked Secure over HTTPS.
+
+    # Image URL ending in .png:  /placard/<room>/<access key>.png
+    location ~ ^/placard/(?<room>[a-z0-9-]+)/(?<key>[A-Za-z0-9]+)\.png$ {
+        rewrite ^ /placard.php?room=$room&key=$key last;
+    }
+
+    # The only two PHP entry points.
+    location ~ ^/(placard|admin/index)\.php$ {
+        # limit_req zone=placard burst=10 nodelay;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        # fastcgi_param PLACARD_DATA_DIR /var/lib/placard;   # keep data elsewhere (must be writable by PHP-FPM)
+        fastcgi_pass unix:/run/php/php8.5-fpm.sock;
+    }
+
+    # Anything else ending in .php does not exist.
+    location ~ \.php$ {
+        return 404;
+    }
+
+    # Never serve dotfiles.
+    location ~ /\. {
+        deny all;
+    }
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+}

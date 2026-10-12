@@ -1,0 +1,3 @@
+# Runtime data: config (password hash, API key), cache, sessions
+/data/*
+!/data/.gitkeep
