@@ -115,6 +115,10 @@ same('google: missing summary becomes Busy', 'Busy', $parsed[4]->title);
 ok('google: error 400 key', str_contains(GoogleCalendar::describeError(400, ['error' => ['message' => 'API key not valid', 'errors' => [['reason' => 'badRequest']]]]), 'API key'));
 ok('google: error 404', str_contains(GoogleCalendar::describeError(404, []), 'not found'));
 ok('google: error 403 public', str_contains(GoogleCalendar::describeError(403, ['error' => ['errors' => [['reason' => 'forbidden']]]]), 'public'));
+$ipBlocked = GoogleCalendar::describeError(403, ['error' => ['message' => 'Requests from IP address 203.0.113.9 are blocked.', 'details' => [['reason' => 'API_KEY_IP_ADDRESS_BLOCKED']]]]);
+ok('google: error 403 ip restriction', str_contains($ipBlocked, 'IP address') && str_contains($ipBlocked, '203.0.113.9'));
+ok('google: error 403 api restriction', str_contains(GoogleCalendar::describeError(403, ['error' => ['message' => 'Requests to this API are blocked.', 'details' => [['reason' => 'API_KEY_SERVICE_BLOCKED']]]]), 'API restrictions'));
+ok('google: error 403 shows googles message', str_contains(GoogleCalendar::describeError(403, ['error' => ['message' => 'Some new reason', 'errors' => [['reason' => 'weird']]]]), 'Some new reason'));
 ok('google: error 403 api disabled', str_contains(GoogleCalendar::describeError(403, ['error' => ['message' => 'Google Calendar API has not been used in project 1', 'errors' => [['reason' => 'accessNotConfigured']]]]), 'not enabled'));
 
 // ---- Config -----------------------------------------------------------

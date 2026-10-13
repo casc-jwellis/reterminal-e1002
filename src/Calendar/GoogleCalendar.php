@@ -107,8 +107,21 @@ final class GoogleCalendar implements CalendarProvider
     {
         $reason  = (string) ($json['error']['errors'][0]['reason'] ?? '');
         $message = (string) ($json['error']['message'] ?? '');
+        // Newer API-key errors carry a machine-readable reason in error.details.
+        $detail = '';
+        foreach ((array) ($json['error']['details'] ?? []) as $d) {
+            if (is_array($d) && isset($d['reason'])) {
+                $detail = (string) $d['reason'];
+                break;
+            }
+        }
 
         return match (true) {
+            $detail === 'API_KEY_IP_ADDRESS_BLOCKED', $reason === 'ipRefererBlocked'
+                => 'The API key\'s application restriction blocks this server. In Google Cloud Console, add this server\'s public IP address to the key\'s allowed IPs (or remove the restriction)'
+                    . ($message !== '' ? '. Google says: ' . $message : '.'),
+            $detail === 'API_KEY_SERVICE_BLOCKED'
+                => 'The API key is restricted to other APIs. In Google Cloud Console, open the key and add "Google Calendar API" under API restrictions.',
             $reason === 'keyInvalid', $status === 400 && str_contains($message, 'API key')
                 => 'Google rejected the API key. Check it on the Settings page.',
             $reason === 'accessNotConfigured', str_contains($message, 'has not been used')
@@ -118,7 +131,8 @@ final class GoogleCalendar implements CalendarProvider
             $status === 403 && in_array($reason, ['rateLimitExceeded', 'quotaExceeded', 'dailyLimitExceeded', 'userRateLimitExceeded'], true)
                 => 'Google API quota exceeded. Try again later.',
             $status === 403
-                => 'Access denied. Make sure the calendar is public with "See all event details", and that the API key is allowed to use the Calendar API.',
+                => 'Access denied' . ($message !== '' ? ' (Google says: ' . $message . ')' : '')
+                    . '. Make sure the calendar is public with "See all event details", and that the API key is allowed to use the Calendar API.',
             default
                 => "Google API error (HTTP $status)" . ($message !== '' ? ': ' . $message : '.'),
         };
